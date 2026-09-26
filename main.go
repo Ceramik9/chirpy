@@ -1,10 +1,24 @@
 package main
 
 import (
-	"fmt"
+	"net/http"
+	"log"
 )
 
 func main() {
-	fmt.Print("Hello World!")
+	
+	//new ServeMux
+	mux := http.NewServeMux()
+	mux.Handle("/app/", http.StripPrefix("/app", http.FileServer(http.Dir("./"))))
+	mux.HandleFunc("/healthz", getServerStatus)
+	
+	// new server struct
+	s := &http.Server {
+		Addr: 	":8080",
+		Handler: mux,
+	}
+
+	log.Fatal(s.ListenAndServe())
+
 }
 
