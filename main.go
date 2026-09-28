@@ -15,13 +15,15 @@ func main() {
 	//new ServeMux
  	mux := http.NewServeMux()
 	// serve /app
-	mux.Handle("/app/", http.StripPrefix("/app", apiCfg.middlewareMetricsInc(http.FileServer(http.Dir("./")))))
-	// serve /healthz
-	mux.Handle("/healthz", middlewareLog(getServerStatus))
-	// serve /metrics
-	mux.Handle("/metrics", middlewareLog(apiCfg.getFileServerHitsMetrics))
-	// serve /reset
-	mux.Handle("/reset", middlewareLog(apiCfg.resetServerHitsMetrics))
+	mux.Handle("GET /app", http.StripPrefix("/app", apiCfg.middlewareMetricsInc(http.FileServer(http.Dir("./")))))
+	// serve /app/assets
+	mux.Handle("GET /app/assets/", http.StripPrefix("/app/assets", apiCfg.middlewareMetricsInc(http.FileServer(http.Dir("./assets/")))))
+	// serve /api/healthz
+	mux.Handle("GET /api/healthz", middlewareLog(getServerStatus))
+	// serve /api/metrics
+	mux.Handle("GET /admin/metrics", middlewareLog(apiCfg.getFileServerHitsMetrics))
+	// serve /api/reset
+	mux.Handle("POST /admin/reset", middlewareLog(apiCfg.resetServerHitsMetrics))
 
 	
 	// new server struct

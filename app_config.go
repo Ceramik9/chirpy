@@ -22,11 +22,11 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 func (cfg *apiConfig) getFileServerHitsMetrics(w http.ResponseWriter, r *http.Request) {
 	
 	// set header
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	// write status code (200)
 	w.WriteHeader(http.StatusOK)
 	// write response body
-	message := fmt.Sprintf("Hits: %d", cfg.fileserverHits.Load())
+	message := fmt.Sprintf("<html><body><h1>Welcome, Chirpy Admin</h1><p>Chirpy has been visited %d times!</p></body></html>", cfg.fileserverHits.Load())
 	w.Write([]byte(message))
 }
 
