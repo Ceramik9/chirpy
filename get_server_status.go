@@ -4,10 +4,12 @@ import(
 	"net/http"
 )
 
-func getServerStatus(res http.ResponseWriter, req *http.Request) {
+func getServerStatus(w http.ResponseWriter, r *http.Request) {
 	
 	// set header
-	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	res.WriteHeader(http.StatusOK)
-	res.Write([]byte("OK"))
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	// write status code (200)
+	w.WriteHeader(http.StatusOK)
+	// write response body
+	w.Write([]byte("OK"))
 }
