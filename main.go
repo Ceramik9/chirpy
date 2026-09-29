@@ -24,6 +24,8 @@ func main() {
 	mux.Handle("GET /admin/metrics", middlewareLog(apiCfg.getFileServerHitsMetrics))
 	// serve /api/reset
 	mux.Handle("POST /admin/reset", middlewareLog(apiCfg.resetServerHitsMetrics))
+	// serve /api/validate_chirp
+	mux.Handle("POST /api/validate_chirp", middlewareLog(validateChirp))
 
 	
 	// new server struct
@@ -31,7 +33,7 @@ func main() {
 		Addr:    ":8080",
 		Handler: mux,
 	}
-
+	// start listening for requets
 	log.Fatal(s.ListenAndServe())
 
 }
