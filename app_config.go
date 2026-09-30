@@ -5,10 +5,12 @@ import(
 	"sync/atomic"
 	"net/http"
 	"fmt"
+	"github.com/Ceramik9/chirpy/internal/database"
 )
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
+	db             *database.Queries
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {

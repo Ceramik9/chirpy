@@ -1,16 +1,32 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"log"
+	_ "github.com/lib/pq"
+	"github.com/joho/godotenv"
+	"os"
+	"database/sql"
+	"github.com/Ceramik9/chirpy/internal/database"
 )
 
 func main() {
-	
 
 	// Create API Config
 	var apiCfg apiConfig
 
+	// load env
+	godotenv.Load()
+	dbURL := os.Getenv("DB_URL")
+
+	// load database
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error loading database: %v", err)
+		os.Exit(1)
+	}
+	apiCfg.db = database.New(db)
 
 	//new ServeMux
  	mux := http.NewServeMux()
