@@ -114,20 +114,38 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 }
 
 
+func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
+	
+	// create request struct
+	type chirpRequest struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at`
+		Body      string    `json:"body"`
+		UserID    uuid.UUID `json:"user_id"`
+	}
 
 
+}
 
 
+func errorHandler(description string, err error) ([]byte, error) {
 
+	type errorHolder struct {
+		desc         string `json:"description"`
+		errorMessage error  `json:"error"`
+	}
 
+	newError := errorHolder {
+		desc:         description,
+		errorMessage: err,
+	}
 
-
-
-
-
-
-
-
-
+	data, err := json.Marshal(newError)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create error response: %w", err)
+	}
+	return data, nil
+}
 
 
