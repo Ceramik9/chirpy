@@ -16,9 +16,10 @@ func main() {
 	// Create API Config
 	var apiCfg apiConfig
 
-	// load env
+	// load .env
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
+	platform := os.Getenv("PLATFORM")
 
 	// load database
 	db, err := sql.Open("postgres", dbURL)
@@ -27,6 +28,10 @@ func main() {
 		os.Exit(1)
 	}
 	apiCfg.db = database.New(db)
+
+	//load environment
+	apiCfg.platform = platform
+
 
 	//new ServeMux
  	mux := http.NewServeMux()
@@ -42,6 +47,8 @@ func main() {
 	mux.Handle("POST /admin/reset", middlewareLog(apiCfg.resetServerHitsMetrics))
 	// serve /api/validate_chirp
 	mux.Handle("POST /api/validate_chirp", middlewareLog(validateChirp))
+	// serve /api/users
+	mux.Handle("POST /api/users", middlewareLog(apiCfg.createUser))
 
 	
 	// new server struct
