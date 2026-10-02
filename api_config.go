@@ -197,4 +197,47 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
   w.Write(data)
 }
 
+func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
+
+	type chirp struct {
+		ID        uuid.UUID     `json:"id"`
+		CreatedAt time.Time     `json:"created_at"`
+		UpdatedAt time.Time     `json:"updated_at"`
+		Body      string        `json:"body"`
+		UserID    uuid.NullUUID `json:"user_id"`
+	}
+
+	allChirps, err := cfg.db.GetAllChirps(r.Context())
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(500)
+		w.Write([]byte(`{"body": "error getting chirps from database"}`))
+		log.Printf("error getting chirps from database: %w", err)
+		return
+	}
+	
+	chirpsSlice := make([]chirp, 0, len(allChirps))
+	for i := 0; i < len(allChirps); i++ {
+		chirpsSlice = append(chirpsSlice, chirp {
+			ID: allChirps[i].ID,
+			CreatedAt: allChirps[i].CreatedAt,
+			UpdatedAt: allChirps[i].UpdatedAt,
+			Body: allChirps[i].Body,
+			UserID: allChirps[i].UserID,
+		})
+	}
+	data, err := json.Marshal(chirpsSlice)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(500)
+		w.Write([]byte(`{"body": "error marshaling response body"}`))
+		log.Printf("error marshaling response body: %w", err)
+		return
+	}
+	
+	// success response
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(200)
+		w.Write(data)
+}
 

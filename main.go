@@ -31,7 +31,7 @@ func main() {
 
 	//load environment
 	apiCfg.platform = platform
-
+ 
 
 	//new ServeMux
  	mux := http.NewServeMux()
@@ -51,6 +51,8 @@ func main() {
 	mux.Handle("POST /api/users", middlewareLog(apiCfg.createUser))
 	// serve /api/chirps
 	mux.Handle("POST /api/chirps", middlewareLog(apiCfg.createChirp))
+	// serve /api/chirps
+	mux.Handle("GET /api/chirps", middlewareLog(apiCfg.getAllChirps))
 
 	
 	// new server struct
