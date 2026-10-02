@@ -116,36 +116,85 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	
-	// create request struct
-	type chirpRequest struct {
+
+	// create chirp request
+	type userRequest struct {
+		Body   string    `json:"body"`
+		UserID uuid.UUID `json:"user_id"`
+	}
+
+	// decode request
+	decoder := json.NewDecoder(r.Body)
+	request := userRequest {}
+	err := decoder.Decode(&request)
+
+	// check for errors
+	if err != nil {
+		resBody := []byte(`{"body": "Error: failed to decode user request"}`)
+		log.Print("Error: failed to decode user request")
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(400)
+    w.Write(resBody)
+		return
+	}
+	if len(request.Body) > 140 {
+		resBody := []byte(`{"body": Error: chirp is too long"}`)
+		log.Printf("Error: chirp is too long")
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(400)
+    w.Write(resBody)
+		return
+	}
+	
+	// validate chirp
+	validatedChirpBody := profanityFilter(request.Body)
+
+	// add chirp to database
+	userID := uuid.NullUUID {
+		UUID:  request.UserID,
+		Valid: true,
+	}
+	chirpParams := database.CreateChirpParams {
+		Body:   validatedChirpBody,
+		UserID: userID,
+	}
+	newChirp, err := cfg.db.CreateChirp(r.Context(), chirpParams)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(500)
+		w.Write([]byte(`{"body": "error adding chirp to database"}`))
+		log.Printf("test: %w", err)
+		return
+	}
+	
+	//create response
+	type chirpResponse struct {
 		ID        uuid.UUID `json:"id"`
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at`
 		Body      string    `json:"body"`
 		UserID    uuid.UUID `json:"user_id"`
 	}
-
-
-}
-
-
-func errorHandler(description string, err error) ([]byte, error) {
-
-	type errorHolder struct {
-		desc         string `json:"description"`
-		errorMessage error  `json:"error"`
+	response := chirpResponse {
+		ID:        newChirp.ID,
+		CreatedAt: newChirp.CreatedAt,
+		UpdatedAt: newChirp.UpdatedAt,
+		Body:      newChirp.Body,
+		UserID:    newChirp.UserID.UUID,
 	}
-
-	newError := errorHolder {
-		desc:         description,
-		errorMessage: err,
-	}
-
-	data, err := json.Marshal(newError)
+	data, err := json.Marshal(response)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create error response: %w", err)
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(201)
+		w.Write([]byte(`{"body": "error adding chirp to database"}`))
+		log.Printf("error marshaling response: %w", err)
+		return
 	}
-	return data, nil
+	
+	// success response
+	w.Header().Set("Content-Type", "application/json")
+  w.WriteHeader(201)
+  w.Write(data)
 }
 
 

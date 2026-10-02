@@ -49,6 +49,8 @@ func main() {
 	mux.Handle("POST /api/validate_chirp", middlewareLog(validateChirp))
 	// serve /api/users
 	mux.Handle("POST /api/users", middlewareLog(apiCfg.createUser))
+	// serve /api/chirps
+	mux.Handle("POST /api/chirps", middlewareLog(apiCfg.createChirp))
 
 	
 	// new server struct
