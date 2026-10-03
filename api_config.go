@@ -198,7 +198,7 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
-
+	// create container struct for chirp
 	type chirp struct {
 		ID        uuid.UUID     `json:"id"`
 		CreatedAt time.Time     `json:"created_at"`
@@ -206,7 +206,8 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
 		Body      string        `json:"body"`
 		UserID    uuid.NullUUID `json:"user_id"`
 	}
-
+	
+	// get all chirps from database
 	allChirps, err := cfg.db.GetAllChirps(r.Context())
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -216,6 +217,7 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
+	// convert chirp keys
 	chirpsSlice := make([]chirp, 0, len(allChirps))
 	for i := 0; i < len(allChirps); i++ {
 		chirpsSlice = append(chirpsSlice, chirp {
@@ -226,6 +228,8 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
 			UserID: allChirps[i].UserID,
 		})
 	}
+
+	// marshal response body
 	data, err := json.Marshal(chirpsSlice)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -240,4 +244,60 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(200)
 		w.Write(data)
 }
+
+func (cfg *apiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
+
+	// parse chirp id
+	chirpID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(400)
+		w.Write([]byte(`{"body": "error parsing user id"}`))
+		log.Printf("error parsing user id: %w", err)
+	}
+	
+	// get the cirp with matching ID from db
+	// I think I sould check if it does exist first, but the task doesn't require to do this
+	dbChirp, err := cfg.db.GetChirp(r.Context(), chirpID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(404)
+		w.Write([]byte(`{"body": "error getting chirp from database"}`))
+		log.Printf("error getting chifrp from database: %w", err)
+	}
+	type response struct {
+		ID        uuid.UUID     `json:"id"`
+		CreatedAt time.Time     `json:"created_at"`
+		UpdatedAt time.Time     `json:"updated_at"`
+		Body      string        `json:"body"`
+		UserID    uuid.NullUUID `json:"user_id"`
+	}
+	
+	res := response {
+		ID:        dbChirp.ID,
+		CreatedAt: dbChirp.CreatedAt,
+		UpdatedAt: dbChirp.UpdatedAt,
+		Body:      dbChirp.Body,
+		UserID:    dbChirp.UserID,
+	}
+	data, err := json.Marshal(res)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(500)
+		w.Write([]byte(`{"body": "error marshalling response"}`))
+		log.Printf("error marshalling response : %w", err)
+	}
+
+	// success response
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(200)
+		w.Write(data)
+}
+
+
+
+
+
+
+
 
