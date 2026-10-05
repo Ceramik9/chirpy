@@ -55,6 +55,8 @@ func main() {
 	mux.Handle("GET /api/chirps", middlewareLog(apiCfg.getAllChirps))
 	// serve /api/chirps/{id}
 	mux.Handle("GET /api/chirps/{id}", middlewareLog(apiCfg.getChirp))
+	// serve /api/login
+	mux.Handle("POST /api/login", middlewareLog(apiCfg.loginUser))
 
 	
 	// new server struct

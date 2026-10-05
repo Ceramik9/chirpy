@@ -9,6 +9,7 @@ import(
 	"github.com/Ceramik9/chirpy/internal/database"
 	"encoding/json"
 	"github.com/google/uuid"
+  "github.com/Ceramik9/chirpy/internal/auth"
 )
 
 type apiConfig struct {
@@ -58,12 +59,13 @@ func (cfg *apiConfig) resetServerHitsMetrics(w http.ResponseWriter, r *http.Requ
 func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 
 	// decode request body
-	type requestEmail struct {
-		Email string `json:"email"`
+	type requestUser struct {
+		Email          string `json:"email"`
+		Password       string `json:"password"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	user := requestEmail {}
+	user := requestUser {}
 	err := decoder.Decode(&user)
 	if err != nil {
 		resBody := []byte(`{"error": "error reading request body"}`)
@@ -74,7 +76,18 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create user
-	newUser, err := cfg.db.CreateUser(r.Context(), user.Email)
+	hashedPassword, err := auth.HashPassword(user.Password)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(500)
+		w.Write([]byte(`{"body": "error hashing password"}`))
+		log.Printf("error hashing password: %w", err)
+	}
+	userParams := database.CreateUserParams {
+		Email: user.Email,
+		HashedPassword: hashedPassword,
+	}
+	newUser, err := cfg.db.CreateUser(r.Context(), userParams)
 	if err != nil {
 		resBody := []byte(`{"error": "error creating new user"}`)
 		w.Header().Set("Content-Type", "application/json")
@@ -257,7 +270,6 @@ func (cfg *apiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// get the cirp with matching ID from db
-	// I think I sould check if it does exist first, but the task doesn't require to do this
 	dbChirp, err := cfg.db.GetChirp(r.Context(), chirpID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -292,6 +304,77 @@ func (cfg *apiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(200)
 		w.Write(data)
+}
+
+func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
+
+	// decode user request
+	type userRequest struct {
+		Password string `json:"password"`
+		Email    string `json:"email"`
+	}
+	request := userRequest {}
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&request)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error decoding user request"}`))
+		log.Printf("error decoding user request : %w", err)
+		return
+	}
+
+	// get uesr's hashed password
+	dbUser, err := cfg.db.GetUser(r.Context(), request.Email)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error getting user"}`))
+		log.Printf("error getting user : %w", err)
+		return
+	}
+
+	//authenticate user
+	match, err := auth.CheckPasswordHash(request.Password, dbUser.HashedPassword)
+	log.Printf("match result: %v", match)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error checking password"}`))
+		log.Printf("error checking password : %w", err)
+		return
+	}
+	if !match {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "incorrect password"}`))
+		log.Printf("incorrect password : %w", nil)
+		return
+	}
+	// success response
+	type responseBody struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Email     string    `json:"email"`
+	}
+	response := responseBody {
+		ID:        dbUser.ID,
+		CreatedAt: dbUser.CreatedAt,
+		UpdatedAt: dbUser.UpdatedAt,
+		Email:     dbUser.Email,
+	}
+	data, err := json.Marshal(response)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(500)
+		w.Write([]byte(`{"body": "error marshaling json"}`))
+		log.Printf("error marshaling json : %w", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+  w.WriteHeader(200)
+	w.Write(data)
 }
 
 
