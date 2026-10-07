@@ -81,7 +81,7 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
 		w.Write([]byte(`{"body": "error hashing password"}`))
-		log.Printf("error hashing password: %w", err)
+		log.Printf("error hashing password: %v", err)
 	}
 	userParams := database.CreateUserParams {
 		Email: user.Email,
@@ -176,7 +176,7 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
 		w.Write([]byte(`{"body": "error adding chirp to database"}`))
-		log.Printf("test: %w", err)
+		log.Printf("test: %v", err)
 		return
 	}
 	
@@ -200,7 +200,7 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(201)
 		w.Write([]byte(`{"body": "error adding chirp to database"}`))
-		log.Printf("error marshaling response: %w", err)
+		log.Printf("error marshaling response: %v", err)
 		return
 	}
 	
@@ -226,7 +226,7 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
 		w.Write([]byte(`{"body": "error getting chirps from database"}`))
-		log.Printf("error getting chirps from database: %w", err)
+		log.Printf("error getting chirps from database: %v", err)
 		return
 	}
 	
@@ -248,7 +248,7 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
 		w.Write([]byte(`{"body": "error marshaling response body"}`))
-		log.Printf("error marshaling response body: %w", err)
+		log.Printf("error marshaling response body: %v", err)
 		return
 	}
 	
@@ -266,7 +266,7 @@ func (cfg *apiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(400)
 		w.Write([]byte(`{"body": "error parsing user id"}`))
-		log.Printf("error parsing user id: %w", err)
+		log.Printf("error parsing user id: %v", err)
 	}
 	
 	// get the cirp with matching ID from db
@@ -275,7 +275,7 @@ func (cfg *apiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(404)
 		w.Write([]byte(`{"body": "error getting chirp from database"}`))
-		log.Printf("error getting chifrp from database: %w", err)
+		log.Printf("error getting chifrp from database: %v", err)
 	}
 	type response struct {
 		ID        uuid.UUID     `json:"id"`
@@ -297,7 +297,7 @@ func (cfg *apiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
 		w.Write([]byte(`{"body": "error marshalling response"}`))
-		log.Printf("error marshalling response : %w", err)
+		log.Printf("error marshalling response : %v", err)
 	}
 
 	// success response
@@ -320,7 +320,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
 		w.Write([]byte(`{"body": "error decoding user request"}`))
-		log.Printf("error decoding user request : %w", err)
+		log.Printf("error decoding user request : %v", err)
 		return
 	}
 
@@ -330,7 +330,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
 		w.Write([]byte(`{"body": "error getting user"}`))
-		log.Printf("error getting user : %w", err)
+		log.Printf("error getting user : %v", err)
 		return
 	}
 
@@ -341,14 +341,14 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
 		w.Write([]byte(`{"body": "error checking password"}`))
-		log.Printf("error checking password : %w", err)
+		log.Printf("error checking password : %v", err)
 		return
 	}
 	if !match {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
 		w.Write([]byte(`{"body": "incorrect password"}`))
-		log.Printf("incorrect password : %w", nil)
+		log.Printf("incorrect password : %v", nil)
 		return
 	}
 	// success response
@@ -369,7 +369,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
 		w.Write([]byte(`{"body": "error marshaling json"}`))
-		log.Printf("error marshaling json : %w", err)
+		log.Printf("error marshaling json : %v", err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
