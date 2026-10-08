@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+
 func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {
 
 	signingKey := []byte(tokenSecret)
@@ -28,6 +29,7 @@ func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (str
 	return key, nil
 }
 
+
 func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims {}, func(token *jwt.Token) (any, error) {
@@ -46,6 +48,7 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 	}
 	return userID, nil
 }
+
 
 func GetBearerToken(headers http.Header) (string, error) {
 	

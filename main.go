@@ -20,6 +20,7 @@ func main() {
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
+	secret := os.Getenv("SECRET")
 
 	// load database
 	db, err := sql.Open("postgres", dbURL)
@@ -31,6 +32,9 @@ func main() {
 
 	//load environment
 	apiCfg.platform = platform
+
+	// load secret
+	apiCfg.secret = secret
  
 
 	//new ServeMux
@@ -64,7 +68,8 @@ func main() {
 		Addr:    ":8080",
 		Handler: mux,
 	}
-	// start listening for requets
+
+	// start listening server
 	log.Fatal(s.ListenAndServe())
 
 }

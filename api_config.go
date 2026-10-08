@@ -16,6 +16,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
 	platform       string
+	secret         string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -133,7 +134,6 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	// create chirp request
 	type userRequest struct {
 		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
 	}
 
 	// decode request
@@ -150,6 +150,28 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
     w.Write(resBody)
 		return
 	}
+
+	// get user token
+	tokenString, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error getting user token"}`))
+		log.Printf("error getting user token: %v", err)
+		return
+	}
+	
+	// validate user
+	validatedUserID, err :=auth.ValidateJWT(tokenString, cfg.secret)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "authorization failed"}`))
+		log.Printf("authorization failed: %v", err)
+		return
+	}
+
+	// check chirp length
 	if len(request.Body) > 140 {
 		resBody := []byte(`{"body": Error: chirp is too long"}`)
 		log.Printf("Error: chirp is too long")
@@ -164,7 +186,7 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 
 	// add chirp to database
 	userID := uuid.NullUUID {
-		UUID:  request.UserID,
+		UUID:  validatedUserID,
 		Valid: true,
 	}
 	chirpParams := database.CreateChirpParams {
@@ -310,8 +332,9 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 
 	// decode user request
 	type userRequest struct {
-		Password string `json:"password"`
-		Email    string `json:"email"`
+		Password         string `json:"password"`
+		Email            string `json:"email"`
+		ExpiresInSeconds int    `json:"expires_in_seconds"`
 	}
 	request := userRequest {}
 	decoder := json.NewDecoder(r.Body)
@@ -336,7 +359,6 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 
 	//authenticate user
 	match, err := auth.CheckPasswordHash(request.Password, dbUser.HashedPassword)
-	log.Printf("match result: %v", match)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
@@ -357,12 +379,31 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
 		Email     string    `json:"email"`
+		Token     string    `json:"token"`
+	}
+
+	// create session token
+	var expirietionTime time.Duration
+	if request.ExpiresInSeconds < 1 || request.ExpiresInSeconds > 3600 {
+		expirietionTime = time.Duration(3600)*time.Second
+	} else {
+		expirietionTime = time.Duration(request.ExpiresInSeconds) * time.Second
+	}
+
+	sessionToken, err := auth.MakeJWT(dbUser.ID, cfg.secret, expirietionTime)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(500)
+		w.Write([]byte(`{"body": "error creating session token"}`))
+		log.Printf("error creating session token: %v", err)
+		return
 	}
 	response := responseBody {
 		ID:        dbUser.ID,
 		CreatedAt: dbUser.CreatedAt,
 		UpdatedAt: dbUser.UpdatedAt,
 		Email:     dbUser.Email,
+		Token:     sessionToken,
 	}
 	data, err := json.Marshal(response)
 	if err != nil {
