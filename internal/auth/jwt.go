@@ -5,6 +5,8 @@ import (
 	"time"
 	"github.com/golang-jwt/jwt/v5"
 	"errors"
+	"net/http"
+	"strings"
 )
 
 func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {
@@ -43,6 +45,17 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 	return userID, nil
+}
+
+func GetBearerToken(headers http.Header) (string, error) {
+	
+	token := headers.Get("Authorization")
+	if token == "" {
+		return "", errors.New("no session token")
+	}
+	noPrefix, _ := strings.CutPrefix(token, "Bearer")
+	result := strings.Trim(noPrefix, " ")
+	return result, nil
 }
 
 
