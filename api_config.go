@@ -334,7 +334,6 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 	type userRequest struct {
 		Password         string `json:"password"`
 		Email            string `json:"email"`
-		ExpiresInSeconds int    `json:"expires_in_seconds"`
 	}
 	request := userRequest {}
 	decoder := json.NewDecoder(r.Body)
@@ -375,22 +374,17 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 	}
 	// success response
 	type responseBody struct {
-		ID        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Email     string    `json:"email"`
-		Token     string    `json:"token"`
+		ID           uuid.UUID `json:"id"`
+		CreatedAt    time.Time `json:"created_at"`
+		UpdatedAt    time.Time `json:"updated_at"`
+		Email        string    `json:"email"`
+		Token        string    `json:"token"`
+		RefreshToken string    `json:"refresh_token`
 	}
 
-	// create session token
-	var expirietionTime time.Duration
-	if request.ExpiresInSeconds < 1 || request.ExpiresInSeconds > 3600 {
-		expirietionTime = time.Duration(3600)*time.Second
-	} else {
-		expirietionTime = time.Duration(request.ExpiresInSeconds) * time.Second
-	}
-
-	sessionToken, err := auth.MakeJWT(dbUser.ID, cfg.secret, expirietionTime)
+	// create access token
+	expirationTime := time.Duration(1*time.Hour)
+	token, err := auth.MakeJWT(dbUser.ID, cfg.secret, expirationTime)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
@@ -398,12 +392,32 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error creating session token: %v", err)
 		return
 	}
+
+	 // create refresh token and add to database
+	 refresh_token := auth.MakeRefreshToken()
+	 refresh_token_expiration := time.Now().Add(60 * 24 * time.Hour)
+	 refreshTokenParams := database.CreateRefreshTokenParams {
+		Token:     refresh_token,
+		UserID:    dbUser.ID,
+		ExpiresAt: refresh_token_expiration,
+	 }
+
+	 err = cfg.db.CreateRefreshToken(r.Context(), refreshTokenParams)
+	 if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(500)
+		w.Write([]byte(`{"body": "error adding refresh token to database"}`))
+		log.Printf("error adding refresh_token to database: %v", err)
+		return
+	 }
+
 	response := responseBody {
-		ID:        dbUser.ID,
-		CreatedAt: dbUser.CreatedAt,
-		UpdatedAt: dbUser.UpdatedAt,
-		Email:     dbUser.Email,
-		Token:     sessionToken,
+		ID:           dbUser.ID,
+		CreatedAt:    dbUser.CreatedAt,
+		UpdatedAt:    dbUser.UpdatedAt,
+		Email:        dbUser.Email,
+		Token:        token,
+		RefreshToken: refresh_token,
 	}
 	data, err := json.Marshal(response)
 	if err != nil {

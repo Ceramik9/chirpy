@@ -7,6 +7,8 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"encoding/hex"
+	"crypto/rand"
 )
 
 
@@ -60,5 +62,25 @@ func GetBearerToken(headers http.Header) (string, error) {
 	result := strings.Trim(noPrefix, " ")
 	return result, nil
 }
+
+
+func MakeRefreshToken() string {
+	
+	key := make([]byte, 32)
+	rand.Read(key)
+	token := hex.EncodeToString(key)
+
+	return token
+}
+
+
+
+
+
+
+
+
+
+
 
 
