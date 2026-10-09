@@ -10,6 +10,7 @@ import(
 	"encoding/json"
 	"github.com/google/uuid"
   "github.com/Ceramik9/chirpy/internal/auth"
+	"database/sql"
 )
 
 type apiConfig struct {
@@ -379,7 +380,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt    time.Time `json:"updated_at"`
 		Email        string    `json:"email"`
 		Token        string    `json:"token"`
-		RefreshToken string    `json:"refresh_token`
+		RefreshToken string    `json:"refresh_token"`
 	}
 
 	// create access token
@@ -394,12 +395,12 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	 // create refresh token and add to database
-	 refresh_token := auth.MakeRefreshToken()
-	 refresh_token_expiration := time.Now().Add(60 * 24 * time.Hour)
+	 refreshToken := auth.MakeRefreshToken()
+	 refreshTokenExpiration := time.Now().Add(60 * 24 * time.Hour)
 	 refreshTokenParams := database.CreateRefreshTokenParams {
-		Token:     refresh_token,
+		Token:     refreshToken,
 		UserID:    dbUser.ID,
-		ExpiresAt: refresh_token_expiration,
+		ExpiresAt: refreshTokenExpiration,
 	 }
 
 	 err = cfg.db.CreateRefreshToken(r.Context(), refreshTokenParams)
@@ -417,7 +418,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:    dbUser.UpdatedAt,
 		Email:        dbUser.Email,
 		Token:        token,
-		RefreshToken: refresh_token,
+		RefreshToken: refreshToken,
 	}
 	data, err := json.Marshal(response)
 	if err != nil {
@@ -432,8 +433,107 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func (cfg *apiConfig) refreshToken(w http.ResponseWriter, r *http.Request) {
+	// get user token from request header
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error, invalid token"}`))
+		log.Printf("error, invalid token : %v", err)
+		return
+	}
+	
+	// get token from database
+	dbToken, err := cfg.db.GetRefreshToken(r.Context(), token)
+	
+	// check if the token exist in database or any other error occured
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error getting token from database"}`))
+		log.Printf("error getting token from databse : %v", err)
+		return
+	}
 
+	// check if the token is valid
+	if time.Now().After(dbToken.ExpiresAt) {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error, token expired"}`))
+		log.Printf("error, token expired : %v", err)
+		return
+	} else if dbToken.RevokedAt.Valid {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error, token revoked"}`))
+		log.Printf("error, token revoked : %v", err)
+		return
+	}
+	
+	// create new access token
+	expirationTime := time.Duration(1*time.Hour)
+	newToken, err := auth.MakeJWT(dbToken.UserID, cfg.secret, expirationTime)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(500)
+		w.Write([]byte(`{"body": "error creating new access token"}`))
+		log.Printf("error creating new access token : %v", err)
+		return
+	}
+	
+	// respond with new token
+	type responseBody struct {
+		Token string `json:"token"`
+	}
+	response := responseBody {
+		Token: newToken,
+	}
+	res, err := json.Marshal(response)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(500)
+		w.Write([]byte(`{"body": "error marshalling response body"}`))
+		log.Printf("error marshalling response body : %v", err)
+		return
+	}
+	// success
+	w.Header().Set("Content-Type", "application/json")
+  w.WriteHeader(200)
+	w.Write(res)
+}
 
+func (cfg *apiConfig) revokeToken(w http.ResponseWriter, r *http.Request) {
+
+	// get user token from request header
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error, invalid token"}`))
+		log.Printf("error, invalid token : %v", err)
+		return
+	}
+	
+	revokeTime := sql.NullTime {
+		Time:  time.Now(),
+		Valid: true,
+	}
+	revokeParams := database.RevokeRefreshTokenParams {
+		RevokedAt: revokeTime,
+		Token:     token,
+	}
+
+		err = cfg.db.RevokeRefreshToken(r.Context(), revokeParams)
+		if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error, failed to revoke refresh token"}`))
+		log.Printf("error, failed to revoke refresh token: %v", err)
+		return
+		}
+    w.WriteHeader(204)
+}
 
 
 

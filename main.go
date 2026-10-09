@@ -61,6 +61,10 @@ func main() {
 	mux.Handle("GET /api/chirps/{id}", middlewareLog(apiCfg.getChirp))
 	// serve /api/login
 	mux.Handle("POST /api/login", middlewareLog(apiCfg.loginUser))
+	// serve /api/refresh
+	mux.Handle("POST /api/refresh", middlewareLog(apiCfg.refreshToken))
+	// serve /api/revoke
+	mux.Handle("POST /api/revoke", middlewareLog(apiCfg.revokeToken))
 
 	
 	// new server struct

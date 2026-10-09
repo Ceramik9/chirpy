@@ -64,7 +64,7 @@ func (q *Queries) GetRefreshToken(ctx context.Context, token string) (RefreshTok
 
 const revokeRefreshToken = `-- name: RevokeRefreshToken :exec
 UPDATE refresh_tokens
-SET revoked_at = $1
+SET revoked_at = $1, updated_at = $1
 WHERE token = $2
 `
 
