@@ -535,6 +535,115 @@ func (cfg *apiConfig) revokeToken(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(204)
 }
 
+func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
+
+	// get user token from request header
+	tokenString, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error, invalid token"}`))
+		log.Printf("error, invalid token : %v", err)
+		return
+	}
+
+	// authenticate
+	userID, err := auth.ValidateJWT(tokenString, cfg.secret)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error, invalid token"}`))
+		log.Printf("error, invalid token : %v", err)
+		return
+	}
+
+	// decode request body
+	type requestBody struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	request := requestBody {}
+	err = decoder.Decode(&request)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error decoding request body"}`))
+		log.Printf("error decoding request body: %v", err)
+		return
+	}
+	
+	// update user
+	hashedPassword, err := auth.HashPassword(request.Password)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error hashing password"}`))
+		log.Printf("error hashing password: %v", err)
+		return
+	}
+
+	updateParams := database.UpdateUserParams {
+		Email:          request.Email,
+		HashedPassword: hashedPassword,
+		ID:             userID,
+	}
+
+	err = cfg.db.UpdateUser(r.Context(), updateParams)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error updating user"}`))
+		log.Printf("error updating user: %v", err)
+		return
+		}
+
+	// create response
+	type responseBody struct {
+		ID             uuid.UUID `json:"id"`
+		CreatedAt      time.Time `json:"created_at"`
+		UpdatedAt      time.Time `json:"updated_at"`
+		Email          string    `json:"email"`
+	}
+
+	updatedUser, err := cfg.db.GetUser(r.Context(), request.Email)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(500)
+		w.Write([]byte(`{"body": "error creating response body"}`))
+		log.Printf("error creating response body: %v", err)
+		return
+	}
+
+	response := responseBody {
+		ID:        updatedUser.ID,
+		CreatedAt: updatedUser.CreatedAt,
+		UpdatedAt: updatedUser.UpdatedAt,
+		Email:     updatedUser.Email,
+	}
+
+	data, err := json.Marshal(response)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(500)
+		w.Write([]byte(`{"body": "error marshalling response body"}`))
+		log.Printf("error marshalling response body: %v", err)
+		return
+	}
+
+	// succcess
+	w.Header().Set("Content-Type", "application/json")
+  w.WriteHeader(200)
+		w.Write(data)
+}
+
+
+
+
+
+
+
+
 
 
 
