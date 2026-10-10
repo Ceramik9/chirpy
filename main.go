@@ -67,6 +67,8 @@ func main() {
 	mux.Handle("POST /api/revoke", middlewareLog(apiCfg.revokeToken))
 	// serve /api/users
 	mux.Handle("PUT /api/users", middlewareLog(apiCfg.updateUser))
+	// serve /api/chirps/{id}
+	mux.Handle("DELETE /api/chirps/{id}", middlewareLog(apiCfg.deleteChirp))
 
 	
 	// new server struct

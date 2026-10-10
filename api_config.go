@@ -547,7 +547,7 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// authenticate
+	// authorize
 	userID, err := auth.ValidateJWT(tokenString, cfg.secret)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -634,10 +634,82 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 	// succcess
 	w.Header().Set("Content-Type", "application/json")
   w.WriteHeader(200)
-		w.Write(data)
+	w.Write(data)
 }
 
+func (cfg *apiConfig) deleteChirp(w http.ResponseWriter, r *http.Request) {
 
+// get user token from request header
+	tokenString, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error, invalid token"}`))
+		log.Printf("error, invalid token : %v", err)
+		return
+	}
+
+	// authenticate
+	userID, err := auth.ValidateJWT(tokenString, cfg.secret)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(401)
+		w.Write([]byte(`{"body": "error, invalid token"}`))
+		log.Printf("error, invalid token : %v", err)
+		return
+	}
+	
+	// get chirp id
+	chirpID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(400)
+		w.Write([]byte(`{"body": "error parsing user id"}`))
+		log.Printf("error parsing user id: %v", err)
+		return
+	}
+
+	// authorize
+	dbChirp, err := cfg.db.GetChirp(r.Context(), chirpID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(404)
+		w.Write([]byte(`{"body": "error getting chirp from database"}`))
+		log.Printf("error getting chirp from database: %v", err)
+		return
+	}
+	
+	if userID != dbChirp.UserID.UUID {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(403)
+		w.Write([]byte(`{"body": "error, user is aunauthorized"}`))
+		log.Printf("error, user is aunauthorized: %v", err)
+		return
+	}
+	
+	// delete chirp
+	user := uuid.NullUUID {
+		UUID:  userID,
+		Valid: true,
+	}
+	
+	deleteParamas := database.DeleteChirpParams {
+		ID:     chirpID,
+		UserID: user,
+	}
+
+	err = cfg.db.DeleteChirp(r.Context(), deleteParamas)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(400)
+		w.Write([]byte(`{"body": "error parsing user id"}`))
+		log.Printf("error parsing user id: %v", err)
+		return
+	}
+
+	// success
+  w.WriteHeader(204)
+}
 
 
 
