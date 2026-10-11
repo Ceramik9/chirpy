@@ -18,6 +18,7 @@ type apiConfig struct {
 	db             *database.Queries
 	platform       string
 	secret         string
+	polka          string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -727,11 +728,25 @@ func (cfg *apiConfig) updateUserRed(w http.ResponseWriter, r *http.Request) {
 		Event string `json:"event"`
 		Data  data   `json:"data"`
 	}
+	
+	//authorize
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		w.WriteHeader(401)
+		log.Printf("error, getting Authorization header: %v", err)
+		return
+	}
 
-		//decode request body
+	if apiKey != cfg.polka {
+		w.WriteHeader(401)
+		log.Printf("unauthorized: %v", err)
+		return
+	}
+
+	//decode request body
 	decoder := json.NewDecoder(r.Body)
 	request := requestBody {}
-	err := decoder.Decode(&request)
+	err = decoder.Decode(&request)
 	if err != nil {
     w.WriteHeader(400)
 		log.Printf("error, failed to decode request body: %v", err)

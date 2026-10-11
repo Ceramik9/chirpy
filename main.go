@@ -21,6 +21,7 @@ func main() {
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
 	secret := os.Getenv("SECRET")
+	polka := os.Getenv("POLKA_KEY")
 
 	// load database
 	db, err := sql.Open("postgres", dbURL)
@@ -35,6 +36,9 @@ func main() {
 
 	// load secret
 	apiCfg.secret = secret
+
+	// load polka key
+	apiCfg.polka = polka
  
 
 	//new ServeMux

@@ -74,3 +74,15 @@ func MakeRefreshToken() string {
 }
 
 
+func GetAPIKey(headers http.Header) (string, error) {
+
+	key := headers.Get("Authorization")
+	if key == "" {
+		return "", errors.New("no session token")
+	}
+	noPrefix, _ := strings.CutPrefix(key, "ApiKey")
+	result := strings.Trim(noPrefix, " ")
+	return result, nil
+}
+
+
