@@ -6,6 +6,7 @@ import(
 	"sync/atomic"
 	"net/http"
 	"fmt"
+	"sort"
 	"github.com/Ceramik9/chirpy/internal/database"
 	"encoding/json"
 	"github.com/google/uuid"
@@ -249,13 +250,13 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
 	// get all chirps from database
 	dbChirps := []database.Chirp {}
 	var err error
-	querry := r.URL.Query().Get("author_id")
-	userID, _ := uuid.Parse(querry)
+	userQuerry := r.URL.Query().Get("author_id")
+	userID, _ := uuid.Parse(userQuerry)
 	nullUserID := uuid.NullUUID {
 		UUID:  userID,
 		Valid: true,
 	}
-	if querry != "" {
+	if userQuerry != "" {
 		dbChirps, err = cfg.db.GetAllChirpsForUser(r.Context(), nullUserID)
 	} else {
 		dbChirps, err = cfg.db.GetAllChirps(r.Context())
@@ -277,6 +278,14 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt: dbChirps[i].UpdatedAt,
 			Body: dbChirps[i].Body,
 			UserID: dbChirps[i].UserID,
+		})
+	}
+
+	// sort chirps
+	sortQuerry := r.URL.Query().Get("sort")
+	if sortQuerry == "desc" {
+		sort.Slice(chirpsSlice, func(i, j int) bool {
+			return chirpsSlice[i].CreatedAt.After(chirpsSlice[j].CreatedAt)
 		})
 	}
 
