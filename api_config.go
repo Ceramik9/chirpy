@@ -245,9 +245,21 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
 		Body      string        `json:"body"`
 		UserID    uuid.NullUUID `json:"user_id"`
 	}
-	
+
 	// get all chirps from database
-	allChirps, err := cfg.db.GetAllChirps(r.Context())
+	dbChirps := []database.Chirp {}
+	var err error
+	querry := r.URL.Query().Get("author_id")
+	userID, _ := uuid.Parse(querry)
+	nullUserID := uuid.NullUUID {
+		UUID:  userID,
+		Valid: true,
+	}
+	if querry != "" {
+		dbChirps, err = cfg.db.GetAllChirpsForUser(r.Context(), nullUserID)
+	} else {
+		dbChirps, err = cfg.db.GetAllChirps(r.Context())
+	}
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
@@ -257,14 +269,14 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// convert chirp keys
-	chirpsSlice := make([]chirp, 0, len(allChirps))
-	for i := 0; i < len(allChirps); i++ {
+	chirpsSlice := make([]chirp, 0, len(dbChirps))
+	for i := 0; i < len(dbChirps); i++ {
 		chirpsSlice = append(chirpsSlice, chirp {
-			ID: allChirps[i].ID,
-			CreatedAt: allChirps[i].CreatedAt,
-			UpdatedAt: allChirps[i].UpdatedAt,
-			Body: allChirps[i].Body,
-			UserID: allChirps[i].UserID,
+			ID: dbChirps[i].ID,
+			CreatedAt: dbChirps[i].CreatedAt,
+			UpdatedAt: dbChirps[i].UpdatedAt,
+			Body: dbChirps[i].Body,
+			UserID: dbChirps[i].UserID,
 		})
 	}
 
