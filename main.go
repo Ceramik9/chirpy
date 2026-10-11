@@ -69,8 +69,10 @@ func main() {
 	mux.Handle("PUT /api/users", middlewareLog(apiCfg.updateUser))
 	// serve /api/chirps/{id}
 	mux.Handle("DELETE /api/chirps/{id}", middlewareLog(apiCfg.deleteChirp))
-
+	// serve /api/polka/webhooks
+	mux.Handle("POST /api/polka/webhooks", middlewareLog(apiCfg.updateUserRed))
 	
+
 	// new server struct
 	s := &http.Server {
 		Addr:    ":8080",
