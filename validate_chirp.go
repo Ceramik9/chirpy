@@ -4,6 +4,7 @@ import(
 	"encoding/json"
 	"net/http"
 	"strings"
+	"log"
 )
 
 func validateChirp(w http.ResponseWriter, r *http.Request) {
@@ -24,17 +25,13 @@ func validateChirp(w http.ResponseWriter, r *http.Request) {
 	
 	// check for errors
 	if err != nil {
-		resBody := []byte(`{"error": "Something went wrong"}`)
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(400)
-    w.Write(resBody)
+		log.Printf("error decoding request body: %v", err)
 		return
 	}
 	if len(request.Body) > 140 {
-		resBody := []byte(`{"error": "Chirp is too long"}`)
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(400)
-    w.Write(resBody)
+    log.Print("chirp is too long")
 		return
 	}
 
@@ -44,9 +41,8 @@ func validateChirp(w http.ResponseWriter, r *http.Request) {
 	}
 	data, err := json.Marshal(resBody)
 	if err != nil {
-		w.Header().Set("Content-Type", "text/plain")
   	w.WriteHeader(400)
-		w.Write([]byte(`{"error": "Failed to generate response body"}`))
+		log.Printf("error marshalling response body: %v", err)
 		return
 	}
 	
@@ -54,7 +50,6 @@ func validateChirp(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
   w.WriteHeader(200)
   w.Write(data)
-	return
 }
 
 

@@ -72,20 +72,17 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	user := requestUser {}
 	err := decoder.Decode(&user)
 	if err != nil {
-		resBody := []byte(`{"error": "error reading request body"}`)
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(400)
-    w.Write(resBody)
+		log.Printf("error reading request body: %v", err)
 		return
 	}
 
 	// create user
 	hashedPassword, err := auth.HashPassword(user.Password)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
-		w.Write([]byte(`{"body": "error hashing password"}`))
 		log.Printf("error hashing password: %v", err)
+		return
 	}
 	userParams := database.CreateUserParams {
 		Email: user.Email,
@@ -93,10 +90,8 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 	}
 	newUser, err := cfg.db.CreateUser(r.Context(), userParams)
 	if err != nil {
-		resBody := []byte(`{"error": "error creating new user"}`)
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
-    w.Write(resBody)
+		log.Printf("error creating new user: %v", err)
 		return
 	}
 
@@ -119,10 +114,8 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 
 	data, err := json.Marshal(res)
 	if err != nil {
-		resBody := []byte(`{"error": "error creating response"}`)
-		w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(201)
-    w.Write(resBody)
+    w.WriteHeader(500)
+		log.Printf("error marshaling response: %v", err)
 		return
 	}
 	
@@ -148,20 +141,15 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 
 	// check for errors
 	if err != nil {
-		resBody := []byte(`{"body": "Error: failed to decode user request"}`)
-		log.Print("Error: failed to decode user request")
-		w.Header().Set("Content-Type", "application/json")
+		log.Printf("error decoding request: %v", err)
     w.WriteHeader(400)
-    w.Write(resBody)
 		return
 	}
 
 	// get user token
 	tokenString, err := auth.GetBearerToken(r.Header)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error getting user token"}`))
 		log.Printf("error getting user token: %v", err)
 		return
 	}
@@ -169,20 +157,15 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	// validate user
 	validatedUserID, err :=auth.ValidateJWT(tokenString, cfg.secret)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "authorization failed"}`))
 		log.Printf("authorization failed: %v", err)
 		return
 	}
 
 	// check chirp length
 	if len(request.Body) > 140 {
-		resBody := []byte(`{"body": Error: chirp is too long"}`)
-		log.Printf("Error: chirp is too long")
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(400)
-    w.Write(resBody)
+		log.Print("error, chirp is too long")
 		return
 	}
 	
@@ -200,10 +183,8 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	}
 	newChirp, err := cfg.db.CreateChirp(r.Context(), chirpParams)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
-		w.Write([]byte(`{"body": "error adding chirp to database"}`))
-		log.Printf("test: %v", err)
+		log.Printf("error adding chirp to database: %v", err)
 		return
 	}
 	
@@ -224,9 +205,7 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	}
 	data, err := json.Marshal(response)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(201)
-		w.Write([]byte(`{"body": "error adding chirp to database"}`))
+    w.WriteHeader(500)
 		log.Printf("error marshaling response: %v", err)
 		return
 	}
@@ -238,6 +217,7 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
+	
 	// create container struct for chirp
 	type chirp struct {
 		ID        uuid.UUID     `json:"id"`
@@ -262,9 +242,7 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
 		dbChirps, err = cfg.db.GetAllChirps(r.Context())
 	}
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
-		w.Write([]byte(`{"body": "error getting chirps from database"}`))
 		log.Printf("error getting chirps from database: %v", err)
 		return
 	}
@@ -292,9 +270,7 @@ func (cfg *apiConfig) getAllChirps(w http.ResponseWriter, r *http.Request) {
 	// marshal response body
 	data, err := json.Marshal(chirpsSlice)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
-		w.Write([]byte(`{"body": "error marshaling response body"}`))
 		log.Printf("error marshaling response body: %v", err)
 		return
 	}
@@ -310,18 +286,14 @@ func (cfg *apiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 	// parse chirp id
 	chirpID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(400)
-		w.Write([]byte(`{"body": "error parsing user id"}`))
 		log.Printf("error parsing user id: %v", err)
 	}
 	
 	// get the cirp with matching ID from db
 	dbChirp, err := cfg.db.GetChirp(r.Context(), chirpID)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(404)
-		w.Write([]byte(`{"body": "error getting chirp from database"}`))
 		log.Printf("error getting chifrp from database: %v", err)
 	}
 	type response struct {
@@ -341,9 +313,7 @@ func (cfg *apiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 	}
 	data, err := json.Marshal(res)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
-		w.Write([]byte(`{"body": "error marshalling response"}`))
 		log.Printf("error marshalling response : %v", err)
 	}
 
@@ -364,9 +334,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&request)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error decoding user request"}`))
 		log.Printf("error decoding user request : %v", err)
 		return
 	}
@@ -374,9 +342,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 	// get uesr's hashed password
 	dbUser, err := cfg.db.GetUser(r.Context(), request.Email)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error getting user"}`))
 		log.Printf("error getting user : %v", err)
 		return
 	}
@@ -384,16 +350,12 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 	//authenticate user
 	match, err := auth.CheckPasswordHash(request.Password, dbUser.HashedPassword)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error checking password"}`))
 		log.Printf("error checking password : %v", err)
 		return
 	}
 	if !match {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "incorrect password"}`))
 		log.Printf("incorrect password : %v", nil)
 		return
 	}
@@ -412,9 +374,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 	expirationTime := time.Duration(1*time.Hour)
 	token, err := auth.MakeJWT(dbUser.ID, cfg.secret, expirationTime)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
-		w.Write([]byte(`{"body": "error creating session token"}`))
 		log.Printf("error creating session token: %v", err)
 		return
 	}
@@ -430,9 +390,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 
 	 err = cfg.db.CreateRefreshToken(r.Context(), refreshTokenParams)
 	 if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
-		w.Write([]byte(`{"body": "error adding refresh token to database"}`))
 		log.Printf("error adding refresh_token to database: %v", err)
 		return
 	 }
@@ -448,9 +406,7 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 	}
 	data, err := json.Marshal(response)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
-		w.Write([]byte(`{"body": "error marshaling json"}`))
 		log.Printf("error marshaling json : %v", err)
 		return
 	}
@@ -460,12 +416,11 @@ func (cfg *apiConfig) loginUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) refreshToken(w http.ResponseWriter, r *http.Request) {
+	
 	// get user token from request header
 	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error, invalid token"}`))
 		log.Printf("error, invalid token : %v", err)
 		return
 	}
@@ -475,24 +430,18 @@ func (cfg *apiConfig) refreshToken(w http.ResponseWriter, r *http.Request) {
 	
 	// check if the token exist in database or any other error occured
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error getting token from database"}`))
 		log.Printf("error getting token from databse : %v", err)
 		return
 	}
 
 	// check if the token is valid
 	if time.Now().After(dbToken.ExpiresAt) {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error, token expired"}`))
 		log.Printf("error, token expired : %v", err)
 		return
 	} else if dbToken.RevokedAt.Valid {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error, token revoked"}`))
 		log.Printf("error, token revoked : %v", err)
 		return
 	}
@@ -501,9 +450,7 @@ func (cfg *apiConfig) refreshToken(w http.ResponseWriter, r *http.Request) {
 	expirationTime := time.Duration(1*time.Hour)
 	newToken, err := auth.MakeJWT(dbToken.UserID, cfg.secret, expirationTime)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
-		w.Write([]byte(`{"body": "error creating new access token"}`))
 		log.Printf("error creating new access token : %v", err)
 		return
 	}
@@ -517,9 +464,7 @@ func (cfg *apiConfig) refreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := json.Marshal(response)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
-		w.Write([]byte(`{"body": "error marshalling response body"}`))
 		log.Printf("error marshalling response body : %v", err)
 		return
 	}
@@ -534,9 +479,7 @@ func (cfg *apiConfig) revokeToken(w http.ResponseWriter, r *http.Request) {
 	// get user token from request header
 	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error, invalid token"}`))
 		log.Printf("error, invalid token : %v", err)
 		return
 	}
@@ -552,9 +495,7 @@ func (cfg *apiConfig) revokeToken(w http.ResponseWriter, r *http.Request) {
 
 		err = cfg.db.RevokeRefreshToken(r.Context(), revokeParams)
 		if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error, failed to revoke refresh token"}`))
 		log.Printf("error, failed to revoke refresh token: %v", err)
 		return
 		}
@@ -566,9 +507,7 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 	// get user token from request header
 	tokenString, err := auth.GetBearerToken(r.Header)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error, invalid token"}`))
 		log.Printf("error, invalid token : %v", err)
 		return
 	}
@@ -576,9 +515,7 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 	// authorize
 	userID, err := auth.ValidateJWT(tokenString, cfg.secret)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error, invalid token"}`))
 		log.Printf("error, invalid token : %v", err)
 		return
 	}
@@ -592,9 +529,7 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 	request := requestBody {}
 	err = decoder.Decode(&request)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error decoding request body"}`))
 		log.Printf("error decoding request body: %v", err)
 		return
 	}
@@ -602,9 +537,7 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 	// update user
 	hashedPassword, err := auth.HashPassword(request.Password)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error hashing password"}`))
 		log.Printf("error hashing password: %v", err)
 		return
 	}
@@ -617,9 +550,7 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 
 	err = cfg.db.UpdateUser(r.Context(), updateParams)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error updating user"}`))
 		log.Printf("error updating user: %v", err)
 		return
 		}
@@ -635,9 +566,7 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 
 	updatedUser, err := cfg.db.GetUser(r.Context(), request.Email)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
-		w.Write([]byte(`{"body": "error creating response body"}`))
 		log.Printf("error creating response body: %v", err)
 		return
 	}
@@ -652,9 +581,7 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 
 	data, err := json.Marshal(response)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(500)
-		w.Write([]byte(`{"body": "error marshalling response body"}`))
 		log.Printf("error marshalling response body: %v", err)
 		return
 	}
@@ -670,9 +597,7 @@ func (cfg *apiConfig) deleteChirp(w http.ResponseWriter, r *http.Request) {
 // get user token from request header
 	tokenString, err := auth.GetBearerToken(r.Header)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error, invalid token"}`))
 		log.Printf("error, invalid token : %v", err)
 		return
 	}
@@ -680,9 +605,7 @@ func (cfg *apiConfig) deleteChirp(w http.ResponseWriter, r *http.Request) {
 	// authenticate
 	userID, err := auth.ValidateJWT(tokenString, cfg.secret)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(401)
-		w.Write([]byte(`{"body": "error, invalid token"}`))
 		log.Printf("error, invalid token : %v", err)
 		return
 	}
@@ -690,9 +613,7 @@ func (cfg *apiConfig) deleteChirp(w http.ResponseWriter, r *http.Request) {
 	// get chirp id
 	chirpID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(400)
-		w.Write([]byte(`{"body": "error parsing user id"}`))
 		log.Printf("error parsing user id: %v", err)
 		return
 	}
@@ -700,17 +621,13 @@ func (cfg *apiConfig) deleteChirp(w http.ResponseWriter, r *http.Request) {
 	// authorize
 	dbChirp, err := cfg.db.GetChirp(r.Context(), chirpID)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(404)
-		w.Write([]byte(`{"body": "error getting chirp from database"}`))
 		log.Printf("error getting chirp from database: %v", err)
 		return
 	}
 	
 	if userID != dbChirp.UserID.UUID {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(403)
-		w.Write([]byte(`{"body": "error, user is aunauthorized"}`))
 		log.Printf("error, user is aunauthorized: %v", err)
 		return
 	}
@@ -728,9 +645,7 @@ func (cfg *apiConfig) deleteChirp(w http.ResponseWriter, r *http.Request) {
 
 	err = cfg.db.DeleteChirp(r.Context(), deleteParamas)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(400)
-		w.Write([]byte(`{"body": "error parsing user id"}`))
 		log.Printf("error parsing user id: %v", err)
 		return
 	}
@@ -792,11 +707,5 @@ func (cfg *apiConfig) updateUserRed(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"body": ""}`))
 
 }
-
-
-
-
-
-
 
 
